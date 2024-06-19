@@ -35,10 +35,13 @@ class BarangKeluarController extends Controller
     ]);
 
     $barang = Barang::findOrFail($request->barang_id);
-
-    // Validasi jika tanggal keluar lebih awal dari tanggal barang masuk
-    if ($request->tgl_keluar < $barang->created_at) {
-        return redirect()->back()->withErrors(['tgl_keluar' => 'Tanggal keluar tidak dapat lebih awal dari tanggal barang masuk.'])->withInput();
+        
+    // Dapatkan barang masuk terakhir berdasarkan tanggal masuk
+    $barangMasukTerakhir = $barang->barangmasuk()->latest('tgl_masuk')->first();
+        
+    // Cek apakah tanggal keluar mendahului tanggal masuk terakhir
+    if ($barangMasukTerakhir && $request->tgl_keluar < $barangMasukTerakhir->tgl_masuk) {
+        return redirect()->back()->withErrors(['tgl_keluar' => 'Tanggal barang keluar tidak boleh mendahului tanggal barang masuk terakhir.'])->withInput();
     }
 
     // Periksa ketersediaan stok
