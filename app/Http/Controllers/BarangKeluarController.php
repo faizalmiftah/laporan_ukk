@@ -7,6 +7,7 @@ use App\Models\BarangKeluar;
 use App\Models\Barang;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Foundation\Validation\ValidatesRequests;
+use Illuminate\Support\Facades\DB;
 
 class BarangKeluarController extends Controller
 {
@@ -27,38 +28,57 @@ class BarangKeluarController extends Controller
     }
 
     public function store(Request $request)
-{
-    $this->validate($request, [
-        'tgl_keluar' => 'required|date',
-        'qty_keluar' => 'required|integer|min:1',
-        'barang_id' => 'required|exists:barang,id',
-    ]);
-
-    $barang = Barang::findOrFail($request->barang_id);
+    {
+        try {
+            // Memulai transaksi
+            DB::beginTransaction();
         
-    // Dapatkan barang masuk terakhir berdasarkan tanggal masuk
-    $barangMasukTerakhir = $barang->barangmasuk()->latest('tgl_masuk')->first();
+            // Validasi input dari request
+            $this->validate($request, [
+                'tgl_keluar' => 'required|date',
+                'qty_keluar' => 'required|integer|min:1',
+                'barang_id' => 'required|exists:barang,id',
+            ]);
         
-    // Cek apakah tanggal keluar mendahului tanggal masuk terakhir
-    if ($barangMasukTerakhir && $request->tgl_keluar < $barangMasukTerakhir->tgl_masuk) {
-        return redirect()->back()->withErrors(['tgl_keluar' => 'Tanggal barang keluar tidak boleh mendahului tanggal barang masuk terakhir.'])->withInput();
+            // Dapatkan barang berdasarkan ID
+            $barang = Barang::findOrFail($request->barang_id);
+        
+            // Dapatkan barang masuk terakhir berdasarkan tanggal masuk
+            $barangMasukTerakhir = $barang->barangmasuk()->latest('tgl_masuk')->first();
+        
+            // Cek apakah tanggal keluar mendahului tanggal masuk terakhir
+            if ($barangMasukTerakhir && $request->tgl_keluar < $barangMasukTerakhir->tgl_masuk) {
+                return redirect()->back()->withErrors(['tgl_keluar' => 'Tanggal barang keluar tidak boleh mendahului tanggal barang masuk terakhir.'])->withInput();
+            }
+        
+            // Periksa ketersediaan stok
+            if ($request->qty_keluar > $barang->stok) {
+                return redirect()->back()->withErrors(['qty_keluar' => 'Jumlah keluar melebihi stok yang tersedia'])->withInput();
+            }
+        
+            // Simpan data pengeluaran barang jika validasi berhasil
+            BarangKeluar::create($request->all());
+        
+            // Kurangi stok barang yang keluar dari stok yang tersedia
+            $barang->stok -= $request->qty_keluar;
+            $barang->save();
+        
+            // Menyimpan perubahan ke database
+            DB::commit();
+        
+            return redirect()->route('barangkeluar.index')->with('success', 'Data berhasil disimpan.');
+        } catch (\Exception $e) {
+            // Melaporkan kesalahan
+            report($e);
+        
+            // Mengembalikan transaksi jika terjadi kesalahan
+            DB::rollBack();
+        
+            return redirect()->route('barangkeluar.index')->with('Gagal', 'Terjadi kesalahan. Data tidak berhasil disimpan.');
+        }
+
+        //return redirect()->route('barangkeluar.index')->with(['success' => 'Data Barang Keluar Berhasil Disimpan!']);
     }
-
-    // Periksa ketersediaan stok
-    if ($request->qty_keluar > $barang->stok) {
-        return redirect()->back()->withErrors(['qty_keluar' => 'Jumlah keluar melebihi stok yang tersedia'])->withInput();
-    }
-
-    // Simpan data pengeluaran barang jika validasi berhasil
-    BarangKeluar::create($request->all());
-
-    // Kurangi stok barang yang keluar dari stok yang tersedia
-    $barang->stok -= $request->qty_keluar;
-    $barang->save();
-
-    return redirect()->route('barangkeluar.index')->with(['success' => 'Data Barang Keluar Berhasil Disimpan!']);
-}
-
 
     public function show($id)
     {
