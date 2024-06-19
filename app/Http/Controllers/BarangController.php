@@ -157,22 +157,18 @@ class BarangController extends Controller
     /**
      * Remove the specified resource from storage.
      */
+    
     public function destroy(string $id)
     {
-        // $rsetBarang = Barang::find($id);
-
-        //delete post
-        // $rsetBarang->delete();
-
-        //redirect to index
-        // return redirect()->route('barang.index')->with(['success' => 'Data Berhasil Dihapus!']);
-
-
-        if (DB::table('barangkeluar')->where('barang_id', $id)->exists()){
-            return redirect()->route('barang.index')->with(['Gagal' => 'Data Gagal Dihapus! Stok tidak kosong!!']);
-        } else {   
-            $rsetKategori = Barang::find($id);
-            $rsetKategori->delete();
+        if (DB::table('barangmasuk')->where('barang_id', $id)->exists()) {
+            return redirect()->route('barang.index')->with(['Gagal' => 'Data Gagal Dihapus!']);
+        }
+        elseif (DB::table('barangkeluar')->where('barang_id', $id)->exists()) {
+            return redirect()->route('barang.index')->with(['Gagal' => 'Data Gagal Dihapus!']);
+        }
+        else {
+            $rsetBarang = Barang::find($id);
+            $rsetBarang->delete();
             return redirect()->route('barang.index')->with(['success' => 'Data Berhasil Dihapus!']);
         }
     }

@@ -12,7 +12,7 @@
 <body>
     <div class="container">
         <center>
-        <h2>Welcome, Aplikasi Inventori Barang</h2>
+        <h2>Selamat Datang di Aplikasi Inventori Barang</h2>
         </center>
     </div>
     <div class="dashboard">

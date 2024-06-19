@@ -101,20 +101,18 @@ class BarangMasukController extends Controller
     public function destroy($id)
     {
         $barangmasuk = BarangMasuk::findOrFail($id);
+
+        // Periksa apakah ada catatan barangkeluar yang terkait dengan barangmasuk ini
         $barangKeluarCount = BarangKeluar::where('barang_id', $barangmasuk->barang_id)
-            ->where('tgl_keluar', '>=', $barangmasuk->tgl_masuk)
-            ->count();
+        ->where('tgl_keluar', '>=', $barangmasuk->tgl_masuk)
+        ->count();
 
         // Jika ada catatan barangkeluar terkait, kembalikan pesan kesalahan
         if ($barangKeluarCount > 0) {
-            return redirect()->route('barangmasuk.index')->withErrors(['error' => 'Data Barang Masuk tidak dapat dihapus karena ada Barang Keluar yang terkait.']);
+        return redirect()->route('barangmasuk.index')->withErrors(['error' => 'Data Barang Masuk tidak dapat dihapus karena ada Barang Keluar yang terkait.']);
         }
 
-        // Mengurangi stok barang terkait
-        $barang = Barang::find($barangmasuk->barang_id);
-        $barang->stok -= $barangmasuk->qty_masuk;
-        $barang->save();
-
+        // Jika tidak ada catatan barangkeluar terkait, lanjutkan penghapusan
         $barangmasuk->delete();
 
         return redirect()->route('barangmasuk.index')->with(['success' => 'Data Barang Masuk Berhasil Dihapus!']);
