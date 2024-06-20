@@ -105,6 +105,12 @@ class BarangKeluarController extends Controller
 
         $barangkeluar = BarangKeluar::findOrFail($id);
         $barang = Barang::findOrFail($request->barang_id);
+
+        $barangMasukTerakhir = $barang->barangmasuk()->latest('tgl_masuk')->first();
+
+        if ($barangMasukTerakhir && $request->tgl_keluar < $barangMasukTerakhir->tgl_masuk) {
+            return redirect()->back()->withErrors(['tgl_keluar' => 'Tanggal barang keluar tidak boleh mendahului tanggal barang masuk terakhir.'])->withInput();
+        }
     
         // Periksa apakah jumlah keluar melebihi stok yang tersedia
         if ($request->qty_keluar > $barang->stok + $barangkeluar->qty_keluar) {
@@ -115,28 +121,19 @@ class BarangKeluarController extends Controller
         $barangkeluar->update($request->all());
     
         // Perbarui stok barang
-        $barang->stok += $barangkeluar->qty_keluar; // Kembalikan stok yang sebelumnya dikurangkan
-        $barang->stok -= $request->qty_keluar; // Kurangi stok dengan jumlah baru yang keluar
-        $barang->save();
+        // $barang->stok += $barangkeluar->qty_keluar; // Kembalikan stok yang sebelumnya dikurangkan
+        // $barang->stok -= $request->qty_keluar; // Kurangi stok dengan jumlah baru yang keluar
+        // $barang->save();
 
         return redirect()->route('barangkeluar.index')->with(['success' => 'Data Barang Keluar Berhasil Disimpan!']);        
     }
 
     public function destroy($id)
-{
-    // Temukan data barang keluar
-    $barangKeluar = BarangKeluar::findOrFail($id);
-    $barangMasuk = $barangKeluar->barang->created_at;
+    {
+        // Find the barangkeluar record and delete it
+        $barangkeluar = BarangKeluar::findOrFail($id);
+        $barangkeluar->delete();
 
-    // Periksa apakah tanggal barang keluar kurang dari tanggal barang masuk
-    if ($barangKeluar->tgl_keluar < $barangMasuk) {
-        return redirect()->route('barangkeluar.index')->with(['error' => 'Tidak dapat menghapus barang keluar sebelum tanggal barang masuk.']);
+        return redirect()->route('barangkeluar.index')->with(['success' => 'Data Barang Keluar Berhasil Dihapus!']);
     }
-
-    // Hapus data barang keluar jika tanggal keluar lebih besar atau sama dengan tanggal barang masuk
-    $barangKeluar->delete();
-
-    return redirect()->route('barangkeluar.index')->with(['success' => 'Data Barang Keluar Berhasil Dihapus!']);
-}
-    
 }

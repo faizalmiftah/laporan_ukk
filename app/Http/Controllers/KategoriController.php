@@ -58,41 +58,62 @@ class KategoriController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'deskripsi' => 'required|unique:kategori,deskripsi',
-            'kategori' => 'required|in:M,A,BHP,BTHP',
-        ]);
+        // $validator = Validator::make($request->all(), [
+        //     'deskripsi' => 'required|unique:kategori,deskripsi',
+        //     'kategori' => 'required|in:M,A,BHP,BTHP',
+        // ]);
 
-        if  ($validator->fails()){
-            return redirect()->back()->withErrors($validator)->withInput();
-        }
+        // if  ($validator->fails()){
+        //     return redirect()->back()->withErrors($validator)->withInput();
+        // }
 
         // //create post
         // Kategori::create([
         //     'deskripsi'  => $request->deskripsi,
         //     'kategori'   => $request->kategori,
         // ]);
+        try {
+            DB::beginTransaction(); // <= Memulai transaksi
+            // Insert data into 'kategori' table
+            $this->validate($request, [
+                'deskripsi' => 'required|unique:kategori,deskripsi',
+                'kategori' => 'required|in:M,A,BHP,BTHP',
+            ]);
+
+            DB::table('kategori')->insert([
+                'deskripsi' => $request->deskripsi,
+                'kategori' => $request->kategori,
+                // Add other columns if needed
+            ]);
+    
+            DB::commit(); // <= Menyimpan perubahan ke database
+        } catch (\Exception $e) {
+            report($e);
+            DB::rollBack(); // <= Mengembalikan transaksi dalam kasus terjadi kesalahan
+            return redirect()->route('kategori.index')->with(['Gagal' => 'Terjadi kesalahan. Data tidak berhasil disimpan.']);
+        }
+        return redirect()->route('kategori.index')->with(['success' => 'Data Berhasil Disimpan!']);
 
 
         //redirect to index
         // return redirect()->route('kategori.index')->with(['success' => 'Data Berhasil Disimpan!']);
 
-        try {
-            DB::beginTransaction(); // <= Starting the transaction
-            // Insert a new order history
-            Kategori::create([
-                'deskripsi' => $request->deskripsi,
-                'kategori' => $request->kategori,
-            ]);
+        // try {
+        //     DB::beginTransaction(); // <= Starting the transaction
+        //     // Insert a new order history
+        //     Kategori::create([
+        //         'deskripsi' => $request->deskripsi,
+        //         'kategori' => $request->kategori,
+        //     ]);
         
-            DB::commit(); // <= Commit the changes
-            return redirect()->route('kategori.index')->with(['success' => 'Data Berhasil Disimpan!']);
-        } catch (\Exception $e) {
-            report($e);
+        //     DB::commit(); // <= Commit the changes
+        //     return redirect()->route('kategori.index')->with(['success' => 'Data Berhasil Disimpan!']);
+        // } catch (\Exception $e) {
+        //     report($e);
             
-            DB::rollBack(); // <= Rollback in case of an exception
-            return redirect()->back()->with(['error' => 'Data Gagal Disimpan!']);
-        }
+        //     DB::rollBack(); // <= Rollback in case of an exception
+        //     return redirect()->back()->with(['error' => 'Data Gagal Disimpan!']);
+        // }
     }
 
     /**

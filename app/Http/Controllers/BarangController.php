@@ -37,42 +37,88 @@ class BarangController extends Controller
      */
     public function store(Request $request)
     {
+        try {
+            // Memulai transaksi
+            DB::beginTransaction();
+        
+            // Validasi input dari request
+            $validatedData = $this->validate($request, [
+                'merk' => 'required|string|max:50',
+                'seri' => 'required|string|max:50',
+                'spesifikasi' => 'required|string',
+                'stok' => 'integer|min:0',
+                'kategori_id' => 'required|exists:kategori,id',
+                'foto'          => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
+            ]);
+        
+            // Default stok ke 1 jika tidak ada dalam request
+            $stok = $request->input('stok', 0);
+        
+            // Menghandle upload file foto
+            $foto = $request->file('foto');
+            $foto->storeAs('public/foto_barang', $foto->hashName());
+            
+        
+            // Insert data ke tabel 'barang'
+            DB::table('barang')->insert([
+                'merk' => $request->merk,
+                'seri' => $request->seri,
+                'spesifikasi' => $request->spesifikasi,
+                'stok' => $stok,
+                'kategori_id' => $request->kategori_id,
+                'foto'             => $foto->hashName()
+            ]);
+        
+            // Menyimpan perubahan ke database
+            DB::commit();
+        
+            return redirect()->route('barang.index')->with(['success' => 'Data berhasil disimpan.']);
+        } catch (\Exception $e) {
+            // Melaporkan kesalahan
+            report($e);
+        
+            // Mengembalikan transaksi jika terjadi kesalahan
+            DB::rollBack();
+        
+            return redirect()->route('barang.index')->with(['Gagal' => 'Terjadi kesalahan. Data tidak berhasil disimpan.']);
+        }
         //return $request;
         //validate form
-        $this->validate($request, [
-            'merk'          => 'required',
-            'seri'          => 'required',
-            'spesifikasi'   => 'required',
-            'kategori_id'   => 'required|not_in:blank',
-            'foto'          => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
 
-        ]);
+
+        // $this->validate($request, [
+        //     'merk'          => 'required',
+        //     'seri'          => 'required',
+        //     'spesifikasi'   => 'required',
+        //     'kategori_id'   => 'required|not_in:blank',
+        //     'foto'          => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
+
+        // ]);
         
-        $existingBarang = Barang::where('merk', $request->merk)
-                            ->where('seri', $request->seri)
-                            ->where('spesifikasi', $request->spesifikasi)
-                            ->first();
+        // $existingBarang = Barang::where('merk', $request->merk)
+        //                     ->where('seri', $request->seri)
+        //                     ->where('spesifikasi', $request->spesifikasi)
+        //                     ->first();
 
-        if ($existingBarang) {
-            // Redirect back with an error message
-            return redirect()->back()->withErrors(['error' => 'Barang dengan merk, seri, dan spesifikasi yang sama sudah ada.']);
-        }
+        // if ($existingBarang) {
+        //     /
+        //     return redirect()->back()->withErrors(['error' => 'Barang dengan merk, seri, dan spesifikasi yang sama sudah ada.']);
+        // }
 
-        //upload image
-        $foto = $request->file('foto');
-        $foto->storeAs('public/foto_barang', $foto->hashName());
+      
+        // $foto = $request->file('foto');
+        // $foto->storeAs('public/foto_barang', $foto->hashName());
 
-        //create post
-        Barang::create([
-            'merk'             => $request->merk,
-            'seri'             => $request->seri,
-            'spesifikasi'      => $request->spesifikasi,
-            'kategori_id'      => $request->kategori_id,
-            'foto'             => $foto->hashName()
-        ]);
+        // Barang::create([
+        //     'merk'             => $request->merk,
+        //     'seri'             => $request->seri,
+        //     'spesifikasi'      => $request->spesifikasi,
+        //     'kategori_id'      => $request->kategori_id,
+        //     'foto'             => $foto->hashName()
+        // ]);
 
-        //redirect to index
-        return redirect()->route('barang.index')->with(['success' => 'Data Berhasil Disimpan!']);
+        
+        // return redirect()->route('barang.index')->with(['success' => 'Data Berhasil Disimpan!']);
     }
 
     /**

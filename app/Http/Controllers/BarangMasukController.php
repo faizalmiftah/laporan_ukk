@@ -8,6 +8,7 @@ use App\Models\Barang;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use App\Models\BarangKeluar;
+use Illuminate\Support\Facades\DB;
 
 class BarangMasukController extends Controller
 {
@@ -27,41 +28,68 @@ class BarangMasukController extends Controller
 
     public function store(Request $request)
     {
-        $this->validate($request, [
-            'tgl_masuk' => 'required|date',
-            'qty_masuk' => 'required|integer|min:1',
-            'barang_id' => 'required|exists:barang,id',
-        ]);
-
-        // Cari barang masuk yang sudah ada dengan barang_id yang sama dan tanggal masuk yang sama
-        $existingBarangMasuk = BarangMasuk::where('barang_id', $request->barang_id)
-            ->where('tgl_masuk', $request->tgl_masuk)
-            ->first();
-
-        if ($existingBarangMasuk) {
-            // Jika ada, tambahkan qty_masuk yang baru ke qty_masuk yang sudah ada
-            $existingBarangMasuk->qty_masuk += $request->qty_masuk;
-            $existingBarangMasuk->save();
-        } else {
-            // Cari barang masuk yang sudah ada dengan barang_id yang sama tetapi tanggal masuk yang berbeda
-            $otherBarangMasuk = BarangMasuk::where('barang_id', $request->barang_id)
-                ->where('tgl_masuk', '!=', $request->tgl_masuk)
-                ->first();
-
-            if ($otherBarangMasuk) {
-                // Jika ada, buat entri baru dengan tanggal masuk yang baru
-                $barangmasuk = BarangMasuk::create([
-                    'tgl_masuk' => $request->tgl_masuk,
-                    'qty_masuk' => $request->qty_masuk,
-                    'barang_id' => $request->barang_id,
-                ]);
-            } else {
-                // Jika tidak ada, tambahkan entri baru
-                $barangmasuk = BarangMasuk::create($request->all());
-            }
+        try {
+            // Memulai transaksi
+            DB::beginTransaction();
+        
+            // Validasi input dari request
+            $this->validate($request, [
+                'tgl_masuk' => 'required|date',
+                'qty_masuk' => 'required|integer|min:1',
+                'barang_id' => 'required|exists:barang,id',
+            ]);
+        
+            // Membuat record baru di tabel barang_masuk
+            $barangmasuk = BarangMasuk::create($request->all());
+        
+            // Menyimpan perubahan ke database
+            DB::commit();
+        
+            return redirect()->route('barangmasuk.index')->with('success', 'Data berhasil disimpan.');
+        } catch (\Exception $e) {
+            // Melaporkan kesalahan
+            report($e);
+        
+            // Mengembalikan transaksi jika terjadi kesalahan
+            DB::rollBack();
+        
+            return redirect()->route('barangmasuk.index')->with('Gagal', 'Terjadi kesalahan. Data tidak berhasil disimpan.');
         }
+        // $this->validate($request, [
+        //     'tgl_masuk' => 'required|date',
+        //     'qty_masuk' => 'required|integer|min:1',
+        //     'barang_id' => 'required|exists:barang,id',
+        // ]);
 
-        return redirect()->route('barangmasuk.index')->with(['success' => 'Data Barang Masuk Berhasil Disimpan!']);
+        // // Cari barang masuk yang sudah ada dengan barang_id yang sama dan tanggal masuk yang sama
+        // $existingBarangMasuk = BarangMasuk::where('barang_id', $request->barang_id)
+        //     ->where('tgl_masuk', $request->tgl_masuk)
+        //     ->first();
+
+        // if ($existingBarangMasuk) {
+        //     // Jika ada, tambahkan qty_masuk yang baru ke qty_masuk yang sudah ada
+        //     $existingBarangMasuk->qty_masuk += $request->qty_masuk;
+        //     $existingBarangMasuk->save();
+        // } else {
+        //     // Cari barang masuk yang sudah ada dengan barang_id yang sama tetapi tanggal masuk yang berbeda
+        //     $otherBarangMasuk = BarangMasuk::where('barang_id', $request->barang_id)
+        //         ->where('tgl_masuk', '!=', $request->tgl_masuk)
+        //         ->first();
+
+        //     if ($otherBarangMasuk) {
+        //         // Jika ada, buat entri baru dengan tanggal masuk yang baru
+        //         $barangmasuk = BarangMasuk::create([
+        //             'tgl_masuk' => $request->tgl_masuk,
+        //             'qty_masuk' => $request->qty_masuk,
+        //             'barang_id' => $request->barang_id,
+        //         ]);
+        //     } else {
+        //         // Jika tidak ada, tambahkan entri baru
+        //         $barangmasuk = BarangMasuk::create($request->all());
+        //     }
+        // }
+
+        // return redirect()->route('barangmasuk.index')->with(['success' => 'Data Barang Masuk Berhasil Disimpan!']);
     }
 
     public function show($id)
